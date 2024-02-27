@@ -46,6 +46,11 @@ int main() {
         buffer[received_bytes] = '\0'; // Stelle sicher, dass der empfangene Text korrekt endet
         printf("Empfangene Daten: %s", buffer);
 
+        if (memcmp(buffer, "\x02\x00\x00\x00\x00\x02", 6) == 0) {
+            printf("GladOS wird hochgefahren... Kuchen wird vorbereitet: \\x02\\x00\\x00\\x00\\x00\\x02\n");
+        } else {
+            printf("Unbekannter Befehl\n");
+        }
         // Sende die empfangenen Daten zurueck an den Client
         send(client_socket, buffer, strlen(buffer), 0);
     }
