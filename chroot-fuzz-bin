@@ -1,0 +1,47 @@
+#!/bin/bash
+set -ex
+################################################################################################
+# Dieses Skript wurde für ein Projekt geschrieben, welches noch nicht veröffentlicht wurde.    #
+# Somit funktioniert dieses Skript nicht und dient nur zur Veranschaulichung der Methodologie  #
+# des Fuzzing in einer Containerisierten Umgebung mit AFL und chroot.                          #
+# root ist hierbei das rootfs einer zu fuzzenden Firmware                                      #
+# Es wird nicht empfohlen diese Skript in einer nicht virtualisierten Umgebung auszuführen.    #
+#                           !   AUSFÜHREN AUF EIGENE GEFAHR        !                           #
+################################################################################################
+
+cp /path/to/afl-qemu-trace root
+cp /path/to/afl-fuzz root
+cp /path/to/sockfuzz.so root
+cp -r /lib/x86_64-linux-gnu root/lib/
+mkdir -p root/usr/arm-linux-gnueabihf
+mkdir -p root/usr/arm-linux-gnueabihf/lib
+cp /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 root/usr/arm-linux-gnueabihf/lib/
+mkdir -p root/in
+cp /path/to/input/001 root/in
+mkdir -p root/out
+mkdir -p root/lib64
+mkdir -p root/dev
+
+mkdir -p root/tmp
+touch root/tmp/VERSION
+
+function cleanup() {
+    cp root/*.core ./ || true
+    git clean -fdx root/ || true
+    git checkout root/ || true
+    sudo umount --recursive root/* || true
+    pkill -P $$
+}
+
+trap cleanup EXIT
+
+sudo mount -t proc root/proc root/proc/
+sudo mount -t sysfs root/sys root/sys/
+sudo mount --rbind /dev root/dev/
+sudo mount --rbind root/run root/run/
+sudo mount --rbind /lib64 root/lib64/
+sudo mount --rbind root/tmp root/tmp/
+
+export PATH="/usr/gnu/bin:/usr/local/sbin:/usr/local/bin:/bin:/sbin:/usr/bin:."
+
+sudo chroot root/ bash -c 'export AFL_DEBUG=1; export AFL_PRELOAD=./sockfuzz.so; export  QEMU_LD_PREFIX=/; export PATH="/usr/gnu/bin:/usr/local/sbin:/usr/local/bin:/bin:/sbin:/usr/bin:."; ./afl-fuzz -Q -i in -o out -t 50000 -- /app/mmapp @@'
