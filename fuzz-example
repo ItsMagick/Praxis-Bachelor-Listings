@@ -1,0 +1,51 @@
+#!/bin/bash
+
+################################################################################################
+# Dieses Skript wurde für ein Projekt geschrieben, welches noch nicht veröffentlicht wurde.    #
+# Somit funktioniert dieses Skript nicht und dient nur zur Veranschaulichung der Methodologie  #
+# des Fuzzing in einer Containerisierten Umgebung mit AFL und bwrap.                           #
+# root ist hierbei das rootfs einer zu fuzzenden Firmware                                      #
+################################################################################################
+
+set -ex
+
+cp ~/Documents/Praktikum/Projekt/AFLplusplus/AFLplusplus/afl-fuzz root
+cp path/to/afl-qemu-trace root
+cp path/to/sockfuzz.so root
+cp -r /lib/x86_64-linux-gnu root/lib/
+mkdir -p root/usr/arm-linux-gnueabihf
+mkdir -p root/usr/arm-linux-gnueabihf/lib
+cp /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 root/usr/arm-linux-gnueabihf/lib/
+mkdir -p root/in
+cp path/to/input/* root/in
+mkdir -p root/out
+
+mkdir -p root/tmp
+touch root/tmp/VERSION
+
+function cleanup() {
+    cp root/*.core ./ || true
+    git clean -fdx root/ || true
+    git checkout root/ || true
+    pkill -P $$
+}
+
+trap cleanup EXIT
+
+bwrap \
+    --clearenv \
+    --die-with-parent \
+    --bind root/ / \
+    --setenv PATH "/usr/gnu/bin:/usr/local/sbin:/usr/local/bin:/bin:/sbin:/usr/bin:." \
+    --proc /proc \
+    --dev /dev \
+    --uid 0 \
+    --gid 0 \
+    --chdir / \
+    --unshare-all \
+    --share-net \
+    --cap-add CAP_SYS_ADMIN \
+    --ro-bind /lib64 /lib64 \
+    --setenv AFL_DEBUG 1 \
+    --setenv AFL_PRELOAD ./sockfuzz.so \
+    /afl-fuzz -Q -i in/ -o out/ -t 50000 -- /app/mmapp @@

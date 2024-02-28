@@ -6,7 +6,19 @@
 #define PORT 7142
 #define BUFFER_SIZE 1024
 
+void simulateHeavyWorkload(){
+    printf("Init MM Board... \n");
+    sleep(2);
+    printf("NetworkMain START... \n");
+    sleep(2);
+    printf("_EventThread START... \n");
+    sleep(2);
+}
+
 int main() {
+    // Simulate the initialisation workload of the iot device
+    simulateHeavyWorkload();
+
     int server_socket, client_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_addr_len = sizeof(client_addr);

@@ -8,4 +8,4 @@ docker run \
   -it arm32v7/ubuntu:18.04 \
   bash -c 'apt-get update -y; \
     apt-get install gcc-4.8 -y; \
-    gcc-4.8 -Wall -Wextra example-tcp-server.c -o example-tcp-server.o'
+    gcc-4.8 -Wall -Wextra -static example-tcp-server.c -o example-tcp-server.o'
