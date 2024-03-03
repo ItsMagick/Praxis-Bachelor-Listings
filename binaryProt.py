@@ -108,9 +108,6 @@ class Documented:
 
     @staticmethod
     def vol_adjust(data1=b'\x00', data2=b'\x0A', data3=b'\x00') -> bytes:
-        # data1 = b'\x00'
-        # data2 = b'\x0A'
-        # data3 = b'\x00'
         base_command = b'\x03\x10\x00\x00\x05\x05\x00%b%b%b' % (data1, data2, data3)
         print("COMMAND DOCUMENTED: [volume adjust] with bytes: %s" % base_command.hex(' ').upper())
         return b'%b%b' % (base_command, checksum(base_command))
@@ -376,7 +373,7 @@ class Documented:
     #     return base_command
 
 
-def check_all_documented(ip):
+def exec_all_on_one(ip):
     """
     Executes all documented Commands listed in /docs/BinaryProtDoc.pdf
     """
@@ -385,21 +382,61 @@ def check_all_documented(ip):
         iterate_callables_documented(s)
 
 
-def execute_one_cmd_on_target(s_ip: str, s_port: int, cmd: function):
+def exec_one_on_one(s_ip: str, cmd: function):
     """
     Executes only one command on a target host.
     :param s_ip:
-    :param s_port:
     :param cmd:
     """
     print('CHECKING IP-ADDRESS: %s' % s_ip)
     with closing(socket.socket()) as s:
         sending = cmd
-        s.connect((s_ip, s_port))
+        s.connect((s_ip, PJ_CMD_PORT))
         print('Sending %s' % sending.hex(' ').upper())
         s.send(sending)
         r = s.recv(1024)
         check_recv_status(r)
+
+
+def check_recv_status(receive: bytes):
+    """
+    Checks the first two bytes of response that indicate successful execution of a command
+    e.g. "\x20" "\x21" "\x22" "\x23" indicate success.
+    :param receive:
+    """
+    if ((receive.hex()[:2] == b'\x23'.hex()) | (receive.hex()[:2] == b'\x20'.hex()) |
+            (receive.hex()[:2] == b'\x22'.hex()) | (receive.hex()[:2] == b'\x21'.hex())):
+        print('COMMAND SUCCESSFUL: %s with checksum %s\n' % (receive.hex(' ').upper(), receive[-1:].hex().upper()))
+    else:
+        print('COMMAND FAILED: %s with checksum %s\n' % (receive.hex(' ').upper(), receive[-1:].hex().upper()))
+
+
+def exec_one_on_all(cmd: function):
+    """
+    Executes one command on all IP addresses
+    :param cmd:
+    :return:
+    """
+    sending = cmd
+    for host in ips:
+        print('CHECKING IP-ADDRESS: %s' % host)
+        with closing(socket.socket()) as s:
+            s.connect((host, PJ_CMD_PORT))
+            s.send(sending)
+            r = s.recv(1024)
+            check_recv_status(r)
+
+
+def exec_all_on_all():
+    """
+    Executes all documented PJCMDCTRL commands on all IP addresses
+    :return:
+    """
+    for host in ips:
+        print('CHECKING IP-ADDRESS: %s' % host)
+        with closing(socket.socket()) as s:
+            s.connect((host, PJ_CMD_PORT))
+            iterate_callables_documented(s)
 
 
 def iterate_callables_documented(soc: socket):
@@ -418,49 +455,8 @@ def iterate_callables_documented(soc: socket):
             pass
 
 
-def check_recv_status(receive: bytes):
-    """
-    Checks the first two bytes of response that indicate successful execution of a command
-    e.g. "\x20" "\x21" "\x22" "\x23" indicate success.
-    :param receive:
-    """
-    if ((receive.hex()[:2] == b'\x23'.hex()) | (receive.hex()[:2] == b'\x20'.hex()) |
-            (receive.hex()[:2] == b'\x22'.hex()) | (receive.hex()[:2] == b'\x21'.hex())):
-        print('COMMAND SUCCESSFUL: %s with checksum %s\n' % (receive.hex(' ').upper(), receive[-1:].hex().upper()))
-    else:
-        print('COMMAND FAILED: %s with checksum %s\n' % (receive.hex(' ').upper(), receive[-1:].hex().upper()))
-
-
-def check_all_ips_with_one(cmd: function):
-    """
-    Executes one command on all IP addresses
-    :param cmd:
-    :return:
-    """
-    sending = cmd
-    for host in ips:
-        print('CHECKING IP-ADDRESS: %s' % host)
-        with closing(socket.socket()) as s:
-            s.connect((host, PJ_CMD_PORT))
-            s.send(sending)
-            r = s.recv(1024)
-            check_recv_status(r)
-
-
-def check_all_ips_with_documented():
-    """
-    Executes all documented PJCMDCTRL commands on all IP addresses
-    :return:
-    """
-    for host in ips:
-        print('CHECKING IP-ADDRESS: %s' % host)
-        with closing(socket.socket()) as s:
-            s.connect((host, PJ_CMD_PORT))
-            iterate_callables_documented(s)
-
-
 def main():
-    execute_one_cmd_on_target(ip_local, PJ_CMD_PORT, Documented.base_model_req())
+    exec_one_on_one(ip_local, PJ_CMD_PORT, Documented.base_model_req())
 
 
 if __name__ == "__main__":
